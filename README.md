@@ -2,6 +2,10 @@
 
 This is an n8n community node for [AgentMail](https://agentmail.to) - the Email API for AI Agents.
 
+![Smart Inbox Filter Workflow](images/workflow-overview.png)
+
+*Example: AI-powered email triage workflow with AgentMail*
+
 AgentMail lets you create email inboxes programmatically for your AI agents, so they can send, receive, and act upon emails autonomously.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
@@ -21,6 +25,8 @@ This node provides two components:
 - **Email Sent**: Triggers when an email is sent
 - **Email Delivered**: Triggers when an email is delivered
 - **Email Bounced**: Triggers when an email bounces
+
+![AgentMail Trigger Node](images/workflow-trigger.png)
 
 ## Installation
 
