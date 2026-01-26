@@ -1,0 +1,143 @@
+{
+  "name": "Daily Email Summary",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "schedule-1",
+      "name": "Schedule"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "list",
+        "inboxId": "your-inbox@agentmail.to",
+        "limit": 50
+      },
+      "type": "n8n-nodes-agentmail.agentMail",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "agentmail-1",
+      "name": "Get Messages"
+    },
+    {
+      "parameters": {
+        "jsCode": "const messages = $input.all();\nconst oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);\n\nconst recentMessages = messages.filter(msg => {\n  const msgDate = new Date(msg.json.created_at || msg.json.timestamp);\n  return msgDate > oneDayAgo;\n});\n\nif (recentMessages.length === 0) {\n  return [{ noMessages: true, summary: 'No new emails in the last 24 hours.' }];\n}\n\nconst formatted = recentMessages.map(msg => ({\n  from: msg.json.from,\n  subject: msg.json.subject,\n  preview: (msg.json.text || '').substring(0, 200),\n  time: msg.json.created_at || msg.json.timestamp\n}));\n\nreturn [{\n  noMessages: false,\n  messageCount: recentMessages.length,\n  messages: formatted,\n  messagesText: formatted.map(m =>\n    `From: ${m.from}\\nSubject: ${m.subject}\\nPreview: ${m.preview}\\n---`\n  ).join('\\n\\n')\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "code-1",
+      "name": "Filter & Format"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Create a concise daily email summary. Format with sections: Requires Action, For Review, Informational."
+            },
+            {
+              "role": "user",
+              "content": "Summarize: {{ $json.messagesText }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        660,
+        0
+      ],
+      "id": "openai-1",
+      "name": "Summarize"
+    },
+    {
+      "parameters": {
+        "channel": "#daily-digest",
+        "text": "={{ $json.message.content }}"
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ],
+      "id": "slack-1",
+      "name": "Post to Slack"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Messages": {
+      "main": [
+        [
+          {
+            "node": "Filter & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter & Format": {
+      "main": [
+        [
+          {
+            "node": "Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

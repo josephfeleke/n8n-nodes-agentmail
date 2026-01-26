@@ -1,0 +1,88 @@
+{
+  "name": "AI Auto-Reply Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "message.received"
+      },
+      "type": "n8n-nodes-agentmail.agentMailTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "trigger-1",
+      "name": "AgentMail Trigger"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a helpful email assistant. Write professional, friendly responses to incoming emails. Keep responses concise but helpful. If you don't know something, say so politely."
+            },
+            {
+              "role": "user",
+              "content": "Please write a reply to this email:\n\nFrom: {{ $json.from }}\nSubject: {{ $json.subject }}\n\nMessage:\n{{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "openai-1",
+      "name": "Generate Reply"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "reply",
+        "threadId": "={{ $('AgentMail Trigger').item.json.threadId }}",
+        "text": "={{ $json.message.content }}"
+      },
+      "type": "n8n-nodes-agentmail.agentMail",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "id": "agentmail-1",
+      "name": "Send Reply"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AgentMail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Generate Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Reply": {
+      "main": [
+        [
+          {
+            "node": "Send Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "name": "Email Classification Router",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "message.received"
+      },
+      "type": "n8n-nodes-agentmail.agentMailTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "trigger-1",
+      "name": "AgentMail Trigger"
+    },
+    {
+      "parameters": {
+        "model": "gpt-3.5-turbo",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Classify emails as: SUPPORT, SALES, GENERAL, or SPAM. Respond with only the category."
+            },
+            {
+              "role": "user",
+              "content": "From: {{ $json.from }}\nSubject: {{ $json.subject }}\n\n{{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "openai-1",
+      "name": "Classify"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "support",
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.content }}",
+                    "value2": "SUPPORT"
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "sales",
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.content }}",
+                    "value2": "SALES"
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "general",
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.content }}",
+                    "value2": "GENERAL"
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "spam",
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.message.content }}",
+                    "value2": "SPAM"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "switch-1",
+      "name": "Route"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AgentMail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Classify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify": {
+      "main": [
+        [
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

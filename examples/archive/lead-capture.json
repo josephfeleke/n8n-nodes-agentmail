@@ -1,0 +1,121 @@
+{
+  "name": "Lead Capture to Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "message.received"
+      },
+      "type": "n8n-nodes-agentmail.agentMailTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "trigger-1",
+      "name": "AgentMail Trigger"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract lead info as JSON: {name, company, interest, urgency, message_summary}"
+            },
+            {
+              "role": "user",
+              "content": "From: {{ $json.from }}\nSubject: {{ $json.subject }}\n\n{{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "openai-1",
+      "name": "Extract Info"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = JSON.parse($json.message.content);\nconst trigger = $('AgentMail Trigger').item.json;\nreturn [{ date: new Date().toISOString(), ...data, email: trigger.from }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "code-1",
+      "name": "Parse"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_SHEET_ID",
+        "sheetName": "Sheet1",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Company": "={{ $json.company }}",
+            "Interest": "={{ $json.interest }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        660,
+        0
+      ],
+      "id": "sheets-1",
+      "name": "Google Sheets"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AgentMail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Info": {
+      "main": [
+        [
+          {
+            "node": "Parse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,251 @@
+{
+  "name": "Smart Inbox Filter",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "message.received"
+      },
+      "type": "n8n-nodes-agentmail.agentMailTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "trigger-1",
+      "name": "AgentMail Trigger"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an email classifier. Analyze emails and classify as:\n\nIMPORTANT - Forward immediately:\n- Personal correspondence (friends, family, colleagues)\n- Financial notifications (banks, payments, invoices)\n- Account security alerts\n- Replies to conversations\n- Time-sensitive matters (appointments, deadlines)\n- Work/business communications\n- Service confirmations (orders, bookings)\n\nPROMO - Accumulate for digest:\n- Marketing and promotional emails\n- Newsletters and subscriptions\n- Sales offers and discounts\n- Product announcements\n- Automated marketing sequences\n- Emails with \"unsubscribe\" footers\n- Mass-mailing characteristics\n\nRespond with ONLY one word: IMPORTANT or PROMO"
+            },
+            {
+              "role": "user",
+              "content": "From: {{ $json.from }}\nSubject: {{ $json.subject }}\n\n{{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [220, 0],
+      "id": "openai-classify",
+      "name": "Classify Email"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "outputKey": "important",
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.output }}",
+                    "value2": "IMPORTANT"
+                  }
+                ]
+              }
+            },
+            {
+              "outputKey": "promo",
+              "conditions": {
+                "string": [
+                  {
+                    "value1": "={{ $json.output }}",
+                    "value2": "PROMO"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "id": "switch-1",
+      "name": "Route"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "inboxId": "={{ $('AgentMail Trigger').item.json.inboxId }}",
+        "to": "your-personal-email@gmail.com",
+        "subject": "[FWD] {{ $('AgentMail Trigger').item.json.subject }}",
+        "textBody": "---------- Forwarded message ----------\nFrom: {{ $('AgentMail Trigger').item.json.from }}\nSubject: {{ $('AgentMail Trigger').item.json.subject }}\n\n{{ $('AgentMail Trigger').item.json.text }}"
+      },
+      "type": "n8n-nodes-agentmail.agentMail",
+      "typeVersion": 1,
+      "position": [660, -100],
+      "id": "agentmail-forward",
+      "name": "Forward Important"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Sheet1",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "received_at": "={{ $now }}",
+            "from": "={{ $('AgentMail Trigger').item.json.from }}",
+            "subject": "={{ $('AgentMail Trigger').item.json.subject }}",
+            "preview": "={{ $('AgentMail Trigger').item.json.text.substring(0, 300) }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [660, 100],
+      "id": "sheets-store",
+      "name": "Store Promo"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 5
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 300],
+      "id": "schedule-1",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Sheet1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [220, 300],
+      "id": "sheets-read",
+      "name": "Read Promos"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.received_at }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [440, 300],
+      "id": "if-1",
+      "name": "Has Promos?"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData"
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [660, 250],
+      "id": "aggregate-1",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an email digest assistant. Create a concise, scannable summary of promotional emails.\n\nFormat:\n## Promo Email Digest\n\n### Worth Checking\n[List any promos that seem valuable - good deals, limited time, from trusted senders]\n\n### Standard Promotions\n[Brief list of typical marketing emails]\n\n### Skip These\n[Obvious spam or low-value promos]\n\nBe brief. Use bullet points. Include sender and key offer if relevant."
+            },
+            {
+              "role": "user",
+              "content": "Summarize these promotional emails:\n\n{{ JSON.stringify($json.data) }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [880, 250],
+      "id": "openai-summarize",
+      "name": "Summarize"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "inboxId": "your-inbox-id",
+        "to": "your-personal-email@gmail.com",
+        "subject": "Promo Email Digest",
+        "textBody": "={{ $json.output }}"
+      },
+      "type": "n8n-nodes-agentmail.agentMail",
+      "typeVersion": 1,
+      "position": [1100, 250],
+      "id": "agentmail-digest",
+      "name": "Send Digest"
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Sheet1",
+        "keepFirstRow": true
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1320, 250],
+      "id": "sheets-clear",
+      "name": "Clear Promos"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AgentMail Trigger": {
+      "main": [[{ "node": "Classify Email", "type": "main", "index": 0 }]]
+    },
+    "Classify Email": {
+      "main": [[{ "node": "Route", "type": "main", "index": 0 }]]
+    },
+    "Route": {
+      "main": [
+        [{ "node": "Forward Important", "type": "main", "index": 0 }],
+        [{ "node": "Store Promo", "type": "main", "index": 0 }]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [[{ "node": "Read Promos", "type": "main", "index": 0 }]]
+    },
+    "Read Promos": {
+      "main": [[{ "node": "Has Promos?", "type": "main", "index": 0 }]]
+    },
+    "Has Promos?": {
+      "main": [[{ "node": "Aggregate", "type": "main", "index": 0 }]]
+    },
+    "Aggregate": {
+      "main": [[{ "node": "Summarize", "type": "main", "index": 0 }]]
+    },
+    "Summarize": {
+      "main": [[{ "node": "Send Digest", "type": "main", "index": 0 }]]
+    },
+    "Send Digest": {
+      "main": [[{ "node": "Clear Promos", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

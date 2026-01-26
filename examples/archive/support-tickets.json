@@ -1,0 +1,154 @@
+{
+  "name": "Support Ticket System",
+  "nodes": [
+    {
+      "parameters": {
+        "event": "message.received"
+      },
+      "type": "n8n-nodes-agentmail.agentMailTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "trigger-1",
+      "name": "AgentMail Trigger"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "Extract support ticket info as JSON: {title, category, priority, description}"
+            },
+            {
+              "role": "user",
+              "content": "From: {{ $json.from }}\nSubject: {{ $json.subject }}\n\n{{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "openai-1",
+      "name": "Analyze"
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('AgentMail Trigger').item.json;\nconst data = JSON.parse($json.message.content);\nconst ticketNumber = 'TKT-' + Date.now().toString(36).toUpperCase();\nreturn [{ ticketNumber, ...data, customer: { email: trigger.from, threadId: trigger.threadId } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ],
+      "id": "code-1",
+      "name": "Prepare"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-api.com/tickets",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ticket_id",
+              "value": "={{ $json.ticketNumber }}"
+            },
+            {
+              "name": "title",
+              "value": "={{ $json.title }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.priority }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        660,
+        0
+      ],
+      "id": "http-1",
+      "name": "Create Ticket"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "reply",
+        "threadId": "={{ $('Prepare').item.json.customer.threadId }}",
+        "text": "Thank you! Your ticket {{ $('Prepare').item.json.ticketNumber }} has been created."
+      },
+      "type": "n8n-nodes-agentmail.agentMail",
+      "typeVersion": 1,
+      "position": [
+        880,
+        0
+      ],
+      "id": "agentmail-1",
+      "name": "Send Confirmation"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AgentMail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Analyze",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze": {
+      "main": [
+        [
+          {
+            "node": "Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare": {
+      "main": [
+        [
+          {
+            "node": "Create Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ticket": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

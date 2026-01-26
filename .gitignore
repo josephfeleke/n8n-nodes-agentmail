@@ -1,0 +1,18 @@
+node_modules/
+dist/
+*.js
+*.d.ts
+*.js.map
+!gulpfile.js
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+
+# Development artifacts
+.playwright-mcp/
+
+# Build cache
+.eslintcache
+tsconfig.tsbuildinfo
