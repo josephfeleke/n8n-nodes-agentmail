@@ -4,6 +4,8 @@ dist/
 *.d.ts
 *.js.map
 !gulpfile.js
+!.prettierrc.js
+!.eslintrc.js
 .DS_Store
 
 # Environment variables

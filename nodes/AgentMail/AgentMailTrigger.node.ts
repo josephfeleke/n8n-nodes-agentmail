@@ -4,9 +4,11 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	IWebhookResponseData,
+	NodeConnectionTypes,
 	IDataObject,
 	IHttpRequestMethods,
 } from 'n8n-workflow';
+import type { ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
 
 export class AgentMailTrigger implements INodeType {
 	description: INodeTypeDescription = {
@@ -21,7 +23,8 @@ export class AgentMailTrigger implements INodeType {
 			name: 'AgentMail Trigger',
 		},
 		inputs: [],
-		outputs: ['main'],
+		outputs: [NodeConnectionTypes.Main],
+		usableAsTool: true,
 		credentials: [
 			{
 				name: 'agentMailApi',
@@ -43,6 +46,16 @@ export class AgentMailTrigger implements INodeType {
 				type: 'options',
 				options: [
 					{
+						name: 'Email Bounced',
+						value: 'message.bounced',
+						description: 'Triggers when an email bounces',
+					},
+					{
+						name: 'Email Delivered',
+						value: 'message.delivered',
+						description: 'Triggers when an email is delivered',
+					},
+					{
 						name: 'Email Received',
 						value: 'message.received',
 						description: 'Triggers when an email is received in any inbox',
@@ -52,16 +65,6 @@ export class AgentMailTrigger implements INodeType {
 						value: 'message.sent',
 						description: 'Triggers when an email is sent',
 					},
-					{
-						name: 'Email Delivered',
-						value: 'message.delivered',
-						description: 'Triggers when an email is delivered',
-					},
-					{
-						name: 'Email Bounced',
-						value: 'message.bounced',
-						description: 'Triggers when an email bounces',
-					},
 				],
 				default: 'message.received',
 				required: true,
@@ -70,12 +73,43 @@ export class AgentMailTrigger implements INodeType {
 			{
 				displayName: 'Inbox Filter',
 				name: 'inboxFilter',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getInboxes',
+				},
 				default: '',
-				placeholder: 'inbox_abc123',
-				description: 'Only trigger for this specific inbox ID (leave empty for all inboxes)',
+				description: 'Only trigger for this specific inbox (leave empty for all inboxes)',
 			},
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			async getInboxes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const response = await this.helpers.httpRequestWithAuthentication.call(
+					this,
+					'agentMailApi',
+					{
+						method: 'GET' as IHttpRequestMethods,
+						url: 'https://api.agentmail.to/v0/inboxes',
+						qs: { limit: 100 },
+						json: true,
+					},
+				) as IDataObject;
+
+				const inboxes = (response.inboxes || []) as IDataObject[];
+				const options: INodePropertyOptions[] = [
+					{ name: 'All Inboxes', value: '' },
+				];
+				for (const inbox of inboxes) {
+					options.push({
+						name: (inbox.email as string) || `${inbox.username}@${inbox.domain || 'agentmail.to'}`,
+						value: (inbox.inbox_id || inbox.id) as string,
+					});
+				}
+				return options;
+			},
+		},
 	};
 
 	webhookMethods = {
@@ -189,7 +223,6 @@ export class AgentMailTrigger implements INodeType {
 	};
 
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
-		const req = this.getRequestObject();
 		const body = this.getBodyData() as IDataObject;
 		const event = this.getNodeParameter('event') as string;
 		const inboxFilter = this.getNodeParameter('inboxFilter') as string;

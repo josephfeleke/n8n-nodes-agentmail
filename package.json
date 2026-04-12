@@ -23,7 +23,6 @@
     "type": "git",
     "url": "https://github.com/josephfeleke/n8n-nodes-agentmail.git"
   },
-  "main": "index.js",
   "scripts": {
     "build": "tsc && gulp build:icons",
     "dev": "tsc --watch",
@@ -33,12 +32,11 @@
     "prepublishOnly": "npm run build"
   },
   "files": [
-    "dist",
-    "images",
-    "LICENSE.md"
+    "dist"
   ],
   "n8n": {
     "n8nNodesApiVersion": 1,
+    "strict": true,
     "credentials": [
       "dist/credentials/AgentMailApi.credentials.js"
     ],

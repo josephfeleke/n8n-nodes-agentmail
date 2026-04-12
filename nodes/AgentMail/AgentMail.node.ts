@@ -3,10 +3,12 @@ import {
 	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	NodeOperationError,
+	NodeApiError,
+	NodeConnectionTypes,
 	IDataObject,
 	IHttpRequestMethods,
 } from 'n8n-workflow';
+import type { ILoadOptionsFunctions, INodePropertyOptions, JsonObject } from 'n8n-workflow';
 
 export class AgentMail implements INodeType {
 	description: INodeTypeDescription = {
@@ -20,8 +22,9 @@ export class AgentMail implements INodeType {
 		defaults: {
 			name: 'AgentMail',
 		},
-		inputs: ['main'],
-		outputs: ['main'],
+		inputs: [NodeConnectionTypes.Main],
+		outputs: [NodeConnectionTypes.Main],
+		usableAsTool: true,
 		credentials: [
 			{
 				name: 'agentMailApi',
@@ -110,6 +113,7 @@ export class AgentMail implements INodeType {
 				name: 'username',
 				type: 'string',
 				default: '',
+				required: true,
 				placeholder: 'my-agent',
 				description: 'Username for the inbox email address (e.g., my-agent@agentmail.to)',
 				displayOptions: {
@@ -138,7 +142,7 @@ export class AgentMail implements INodeType {
 				name: 'domain',
 				type: 'string',
 				default: 'agentmail.to',
-				description: 'Domain for the inbox (default: agentmail.to)',
+				description: 'Domain for the inbox email address. Most users should leave this as the default.',
 				displayOptions: {
 					show: {
 						resource: ['inbox'],
@@ -149,12 +153,15 @@ export class AgentMail implements INodeType {
 
 			// Inbox: Get/Delete
 			{
-				displayName: 'Inbox ID',
+				displayName: 'Inbox',
 				name: 'inboxId',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getInboxes',
+				},
 				default: '',
 				required: true,
-				description: 'The ID of the inbox',
+				description: 'The inbox to use',
 				displayOptions: {
 					show: {
 						resource: ['inbox'],
@@ -178,18 +185,6 @@ export class AgentMail implements INodeType {
 				},
 				options: [
 					{
-						name: 'Send',
-						value: 'send',
-						description: 'Send an email from an inbox',
-						action: 'Send an email',
-					},
-					{
-						name: 'Reply',
-						value: 'reply',
-						description: 'Reply to an existing message',
-						action: 'Reply to a message',
-					},
-					{
 						name: 'Get',
 						value: 'get',
 						description: 'Get a message by ID',
@@ -201,18 +196,33 @@ export class AgentMail implements INodeType {
 						description: 'List messages in an inbox',
 						action: 'List messages',
 					},
+					{
+						name: 'Reply',
+						value: 'reply',
+						description: 'Reply to an existing message',
+						action: 'Reply to a message',
+					},
+					{
+						name: 'Send',
+						value: 'send',
+						description: 'Send an email from an inbox',
+						action: 'Send an email',
+					},
 				],
-				default: 'send',
+				default: 'get',
 			},
 
-			// Message: Send
+			// Message: Send/List
 			{
-				displayName: 'Inbox ID',
+				displayName: 'Inbox',
 				name: 'inboxId',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getInboxes',
+				},
 				default: '',
 				required: true,
-				description: 'The inbox to send from',
+				description: 'The inbox to use',
 				displayOptions: {
 					show: {
 						resource: ['message'],
@@ -271,10 +281,10 @@ export class AgentMail implements INodeType {
 				name: 'htmlBody',
 				type: 'string',
 				typeOptions: {
-					rows: 5,
+					editor: 'htmlEditor',
 				},
 				default: '',
-				description: 'HTML body of the email (optional)',
+				description: 'HTML body of the email. If provided, this will be used instead of the text body by email clients that support HTML.',
 				displayOptions: {
 					show: {
 						resource: ['message'],
@@ -299,17 +309,32 @@ export class AgentMail implements INodeType {
 				},
 			},
 
-			// Message: List options
+			// List options
+			{
+				displayName: 'Return All',
+				name: 'returnAll',
+				type: 'boolean',
+				default: false,
+				description: 'Whether to return all results or only up to a given limit',
+				displayOptions: {
+					show: {
+						operation: ['list'],
+					},
+				},
+			},
 			{
 				displayName: 'Limit',
 				name: 'limit',
 				type: 'number',
-				default: 20,
+				default: 50,
+				typeOptions: {
+					minValue: 1,
+				},
 				description: 'Max number of results to return',
 				displayOptions: {
 					show: {
-						resource: ['message', 'inbox', 'thread'],
 						operation: ['list'],
+						returnAll: [false],
 					},
 				},
 			},
@@ -344,12 +369,15 @@ export class AgentMail implements INodeType {
 				default: 'list',
 			},
 			{
-				displayName: 'Inbox ID',
+				displayName: 'Inbox',
 				name: 'inboxId',
-				type: 'string',
+				type: 'options',
+				typeOptions: {
+					loadOptionsMethod: 'getInboxes',
+				},
 				default: '',
 				required: true,
-				description: 'The inbox ID',
+				description: 'The inbox to use',
 				displayOptions: {
 					show: {
 						resource: ['thread'],
@@ -427,10 +455,10 @@ export class AgentMail implements INodeType {
 				name: 'events',
 				type: 'multiOptions',
 				options: [
+					{ name: 'Message Bounced', value: 'message.bounced' },
+					{ name: 'Message Delivered', value: 'message.delivered' },
 					{ name: 'Message Received', value: 'message.received' },
 					{ name: 'Message Sent', value: 'message.sent' },
-					{ name: 'Message Delivered', value: 'message.delivered' },
-					{ name: 'Message Bounced', value: 'message.bounced' },
 				],
 				default: ['message.received'],
 				description: 'Events to subscribe to',
@@ -458,6 +486,29 @@ export class AgentMail implements INodeType {
 		],
 	};
 
+	methods = {
+		loadOptions: {
+			async getInboxes(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const response = await this.helpers.httpRequestWithAuthentication.call(
+					this,
+					'agentMailApi',
+					{
+						method: 'GET' as IHttpRequestMethods,
+						url: 'https://api.agentmail.to/v0/inboxes',
+						qs: { limit: 100 },
+						json: true,
+					},
+				) as IDataObject;
+
+				const inboxes = (response.inboxes || []) as IDataObject[];
+				return inboxes.map((inbox) => ({
+					name: (inbox.email as string) || `${inbox.username}@${inbox.domain || 'agentmail.to'}`,
+					value: (inbox.inbox_id || inbox.id) as string,
+				}));
+			},
+		},
+	};
+
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
 		const items = this.getInputData();
 		const returnData: INodeExecutionData[] = [];
@@ -465,6 +516,13 @@ export class AgentMail implements INodeType {
 		const operation = this.getNodeParameter('operation', 0) as string;
 
 		const baseUrl = 'https://api.agentmail.to/v0';
+
+		const listResponseKeys: Record<string, string> = {
+			inbox: 'inboxes',
+			message: 'messages',
+			thread: 'threads',
+			webhook: 'webhooks',
+		};
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -505,17 +563,44 @@ export class AgentMail implements INodeType {
 							},
 						);
 					} else if (operation === 'list') {
-						const limit = this.getNodeParameter('limit', i) as number;
-						responseData = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'agentMailApi',
-							{
-								method: 'GET' as IHttpRequestMethods,
-								url: `${baseUrl}/inboxes`,
-								qs: { limit },
-								json: true,
-							},
+						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+						const limit = returnAll ? 0 : (this.getNodeParameter('limit', i) as number);
+						const responseKey = listResponseKeys[resource];
+						const allItems: IDataObject[] = [];
+						let pageToken: string | undefined;
+						const maxPages = 100;
+
+						for (let page = 0; page < maxPages; page++) {
+							const pageSize = returnAll ? 100 : Math.min(100, limit - allItems.length);
+							const qs: IDataObject = { limit: pageSize };
+							if (pageToken) qs.page_token = pageToken;
+
+							const response = await this.helpers.httpRequestWithAuthentication.call(
+								this,
+								'agentMailApi',
+								{
+									method: 'GET' as IHttpRequestMethods,
+									url: `${baseUrl}/inboxes`,
+									qs,
+									json: true,
+								},
+							) as IDataObject;
+
+							const pageItems = (response[responseKey] || []) as IDataObject[];
+							allItems.push(...pageItems);
+
+							if (!returnAll && allItems.length >= limit) break;
+							if (!response.next_page_token) break;
+							pageToken = response.next_page_token as string;
+						}
+
+						const results = returnAll ? allItems : allItems.slice(0, limit);
+						const executionData = this.helpers.constructExecutionMetaData(
+							this.helpers.returnJsonArray(results),
+							{ itemData: { item: i } },
 						);
+						returnData.push(...executionData);
+						continue;
 					} else if (operation === 'delete') {
 						const inboxId = this.getNodeParameter('inboxId', i) as string;
 						responseData = await this.helpers.httpRequestWithAuthentication.call(
@@ -587,17 +672,44 @@ export class AgentMail implements INodeType {
 						);
 					} else if (operation === 'list') {
 						const inboxId = this.getNodeParameter('inboxId', i) as string;
-						const limit = this.getNodeParameter('limit', i) as number;
-						responseData = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'agentMailApi',
-							{
-								method: 'GET' as IHttpRequestMethods,
-								url: `${baseUrl}/inboxes/${inboxId}/messages`,
-								qs: { limit },
-								json: true,
-							},
+						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+						const limit = returnAll ? 0 : (this.getNodeParameter('limit', i) as number);
+						const responseKey = listResponseKeys[resource];
+						const allItems: IDataObject[] = [];
+						let pageToken: string | undefined;
+						const maxPages = 100;
+
+						for (let page = 0; page < maxPages; page++) {
+							const pageSize = returnAll ? 100 : Math.min(100, limit - allItems.length);
+							const qs: IDataObject = { limit: pageSize };
+							if (pageToken) qs.page_token = pageToken;
+
+							const response = await this.helpers.httpRequestWithAuthentication.call(
+								this,
+								'agentMailApi',
+								{
+									method: 'GET' as IHttpRequestMethods,
+									url: `${baseUrl}/inboxes/${inboxId}/messages`,
+									qs,
+									json: true,
+								},
+							) as IDataObject;
+
+							const pageItems = (response[responseKey] || []) as IDataObject[];
+							allItems.push(...pageItems);
+
+							if (!returnAll && allItems.length >= limit) break;
+							if (!response.next_page_token) break;
+							pageToken = response.next_page_token as string;
+						}
+
+						const results = returnAll ? allItems : allItems.slice(0, limit);
+						const executionData = this.helpers.constructExecutionMetaData(
+							this.helpers.returnJsonArray(results),
+							{ itemData: { item: i } },
 						);
+						returnData.push(...executionData);
+						continue;
 					}
 				}
 
@@ -618,17 +730,44 @@ export class AgentMail implements INodeType {
 						);
 					} else if (operation === 'list') {
 						const inboxId = this.getNodeParameter('inboxId', i) as string;
-						const limit = this.getNodeParameter('limit', i) as number;
-						responseData = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'agentMailApi',
-							{
-								method: 'GET' as IHttpRequestMethods,
-								url: `${baseUrl}/inboxes/${inboxId}/threads`,
-								qs: { limit },
-								json: true,
-							},
+						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+						const limit = returnAll ? 0 : (this.getNodeParameter('limit', i) as number);
+						const responseKey = listResponseKeys[resource];
+						const allItems: IDataObject[] = [];
+						let pageToken: string | undefined;
+						const maxPages = 100;
+
+						for (let page = 0; page < maxPages; page++) {
+							const pageSize = returnAll ? 100 : Math.min(100, limit - allItems.length);
+							const qs: IDataObject = { limit: pageSize };
+							if (pageToken) qs.page_token = pageToken;
+
+							const response = await this.helpers.httpRequestWithAuthentication.call(
+								this,
+								'agentMailApi',
+								{
+									method: 'GET' as IHttpRequestMethods,
+									url: `${baseUrl}/inboxes/${inboxId}/threads`,
+									qs,
+									json: true,
+								},
+							) as IDataObject;
+
+							const pageItems = (response[responseKey] || []) as IDataObject[];
+							allItems.push(...pageItems);
+
+							if (!returnAll && allItems.length >= limit) break;
+							if (!response.next_page_token) break;
+							pageToken = response.next_page_token as string;
+						}
+
+						const results = returnAll ? allItems : allItems.slice(0, limit);
+						const executionData = this.helpers.constructExecutionMetaData(
+							this.helpers.returnJsonArray(results),
+							{ itemData: { item: i } },
 						);
+						returnData.push(...executionData);
+						continue;
 					}
 				}
 
@@ -654,15 +793,44 @@ export class AgentMail implements INodeType {
 							},
 						);
 					} else if (operation === 'list') {
-						responseData = await this.helpers.httpRequestWithAuthentication.call(
-							this,
-							'agentMailApi',
-							{
-								method: 'GET' as IHttpRequestMethods,
-								url: `${baseUrl}/webhooks`,
-								json: true,
-							},
+						const returnAll = this.getNodeParameter('returnAll', i) as boolean;
+						const limit = returnAll ? 0 : (this.getNodeParameter('limit', i) as number);
+						const responseKey = listResponseKeys[resource];
+						const allItems: IDataObject[] = [];
+						let pageToken: string | undefined;
+						const maxPages = 100;
+
+						for (let page = 0; page < maxPages; page++) {
+							const pageSize = returnAll ? 100 : Math.min(100, limit - allItems.length);
+							const qs: IDataObject = { limit: pageSize };
+							if (pageToken) qs.page_token = pageToken;
+
+							const response = await this.helpers.httpRequestWithAuthentication.call(
+								this,
+								'agentMailApi',
+								{
+									method: 'GET' as IHttpRequestMethods,
+									url: `${baseUrl}/webhooks`,
+									qs,
+									json: true,
+								},
+							) as IDataObject;
+
+							const pageItems = (response[responseKey] || []) as IDataObject[];
+							allItems.push(...pageItems);
+
+							if (!returnAll && allItems.length >= limit) break;
+							if (!response.next_page_token) break;
+							pageToken = response.next_page_token as string;
+						}
+
+						const results = returnAll ? allItems : allItems.slice(0, limit);
+						const executionData = this.helpers.constructExecutionMetaData(
+							this.helpers.returnJsonArray(results),
+							{ itemData: { item: i } },
 						);
+						returnData.push(...executionData);
+						continue;
 					} else if (operation === 'delete') {
 						const webhookId = this.getNodeParameter('webhookId', i) as string;
 						responseData = await this.helpers.httpRequestWithAuthentication.call(
@@ -692,7 +860,7 @@ export class AgentMail implements INodeType {
 					});
 					continue;
 				}
-				throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: i });
+				throw new NodeApiError(this.getNode(), error as JsonObject, { itemIndex: i });
 			}
 		}
 
