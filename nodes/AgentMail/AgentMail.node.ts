@@ -124,31 +124,35 @@ export class AgentMail implements INodeType {
 				},
 			},
 			{
-				displayName: 'Display Name',
-				name: 'displayName',
-				type: 'string',
-				default: '',
-				placeholder: 'My AI Agent',
-				description: 'Display name for the inbox',
+				displayName: 'Additional Fields',
+				name: 'additionalFields',
+				type: 'collection',
+				placeholder: 'Add Field',
+				default: {},
 				displayOptions: {
 					show: {
 						resource: ['inbox'],
 						operation: ['create'],
 					},
 				},
-			},
-			{
-				displayName: 'Domain',
-				name: 'domain',
-				type: 'string',
-				default: 'agentmail.to',
-				description: 'Domain for the inbox email address. Most users should leave this as the default.',
-				displayOptions: {
-					show: {
-						resource: ['inbox'],
-						operation: ['create'],
+				options: [
+					{
+						displayName: 'Display Name',
+						name: 'displayName',
+						type: 'string',
+						default: '',
+						placeholder: 'My AI Agent',
+						description: 'A friendly name shown in email headers (e.g., "My AI Agent")',
 					},
-				},
+					{
+						displayName: 'Domain',
+						name: 'domain',
+						type: 'string',
+						default: '',
+						placeholder: 'agentmail.to',
+						description: 'Custom domain for the inbox. Leave empty to use agentmail.to.',
+					},
+				],
 			},
 
 			// Inbox: Get/Delete
@@ -261,14 +265,15 @@ export class AgentMail implements INodeType {
 				},
 			},
 			{
-				displayName: 'Body (Text)',
+				displayName: 'Message',
 				name: 'textBody',
 				type: 'string',
 				typeOptions: {
 					rows: 5,
 				},
 				default: '',
-				description: 'Plain text body of the email',
+				required: true,
+				description: 'The message body of the email',
 				displayOptions: {
 					show: {
 						resource: ['message'],
@@ -277,20 +282,29 @@ export class AgentMail implements INodeType {
 				},
 			},
 			{
-				displayName: 'Body (HTML)',
-				name: 'htmlBody',
-				type: 'string',
-				typeOptions: {
-					editor: 'htmlEditor',
-				},
-				default: '',
-				description: 'HTML body of the email. If provided, this will be used instead of the text body by email clients that support HTML.',
+				displayName: 'Options',
+				name: 'messageOptions',
+				type: 'collection',
+				placeholder: 'Add Option',
+				default: {},
 				displayOptions: {
 					show: {
 						resource: ['message'],
 						operation: ['send', 'reply'],
 					},
 				},
+				options: [
+					{
+						displayName: 'HTML Body',
+						name: 'htmlBody',
+						type: 'string',
+						typeOptions: {
+							editor: 'htmlEditor',
+						},
+						default: '',
+						description: 'Send as HTML email instead of plain text. Overrides the message body for email clients that support HTML.',
+					},
+				],
 			},
 
 			// Message: Reply
@@ -534,8 +548,15 @@ export class AgentMail implements INodeType {
 				if (resource === 'inbox') {
 					if (operation === 'create') {
 						const username = this.getNodeParameter('username', i) as string;
-						const displayName = this.getNodeParameter('displayName', i) as string;
-						const domain = this.getNodeParameter('domain', i) as string;
+						const additionalFields = this.getNodeParameter('additionalFields', i) as IDataObject;
+
+						const body: IDataObject = { username };
+						if (additionalFields.displayName) {
+							body.display_name = additionalFields.displayName;
+						}
+						if (additionalFields.domain) {
+							body.domain = additionalFields.domain;
+						}
 
 						responseData = await this.helpers.httpRequestWithAuthentication.call(
 							this,
@@ -543,11 +564,7 @@ export class AgentMail implements INodeType {
 							{
 								method: 'POST' as IHttpRequestMethods,
 								url: `${baseUrl}/inboxes`,
-								body: {
-									username,
-									display_name: displayName || undefined,
-									domain: domain || undefined,
-								},
+								body,
 								json: true,
 							},
 						);
@@ -624,7 +641,16 @@ export class AgentMail implements INodeType {
 						const to = this.getNodeParameter('to', i) as string;
 						const subject = this.getNodeParameter('subject', i) as string;
 						const textBody = this.getNodeParameter('textBody', i) as string;
-						const htmlBody = this.getNodeParameter('htmlBody', i) as string;
+						const messageOptions = this.getNodeParameter('messageOptions', i) as IDataObject;
+
+						const body: IDataObject = {
+							to: [to],
+							subject,
+							text: textBody,
+						};
+						if (messageOptions.htmlBody) {
+							body.html = messageOptions.htmlBody;
+						}
 
 						responseData = await this.helpers.httpRequestWithAuthentication.call(
 							this,
@@ -632,19 +658,21 @@ export class AgentMail implements INodeType {
 							{
 								method: 'POST' as IHttpRequestMethods,
 								url: `${baseUrl}/inboxes/${inboxId}/messages`,
-								body: {
-									to: [to],
-									subject,
-									text: textBody,
-									html: htmlBody || undefined,
-								},
+								body,
 								json: true,
 							},
 						);
 					} else if (operation === 'reply') {
 						const messageId = this.getNodeParameter('messageId', i) as string;
 						const textBody = this.getNodeParameter('textBody', i) as string;
-						const htmlBody = this.getNodeParameter('htmlBody', i) as string;
+						const messageOptions = this.getNodeParameter('messageOptions', i) as IDataObject;
+
+						const body: IDataObject = {
+							text: textBody,
+						};
+						if (messageOptions.htmlBody) {
+							body.html = messageOptions.htmlBody;
+						}
 
 						responseData = await this.helpers.httpRequestWithAuthentication.call(
 							this,
@@ -652,10 +680,7 @@ export class AgentMail implements INodeType {
 							{
 								method: 'POST' as IHttpRequestMethods,
 								url: `${baseUrl}/messages/${messageId}/reply`,
-								body: {
-									text: textBody,
-									html: htmlBody || undefined,
-								},
+								body,
 								json: true,
 							},
 						);
