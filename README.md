@@ -1,30 +1,34 @@
 # n8n-nodes-agentmail
 
-This is an n8n community node for [AgentMail](https://agentmail.to) - the Email API for AI Agents.
+This is an n8n community node for [AgentMail](https://agentmail.to) — the Email API for AI Agents.
 
 ![Smart Inbox Filter Workflow](images/workflow-overview.png)
 
 *Example: AI-powered email triage workflow with AgentMail*
 
-AgentMail lets you create email inboxes programmatically for your AI agents, so they can send, receive, and act upon emails autonomously.
+AgentMail lets you create email inboxes for your AI agents so they can send, receive, and act on emails autonomously. No SMTP configuration needed — just an API key.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
 ## Features
 
-This node provides two components:
-
 ### AgentMail Node (Actions)
-- **Inbox**: Create, Get, List, Delete inboxes
-- **Message**: Send, Reply, Get, List messages
-- **Thread**: Get, List email threads
-- **Webhook**: Create, List, Delete webhooks
+- **Inbox** — Create, Get, List, Delete inboxes
+- **Message** — Send, Reply, Get, List messages
+- **Thread** — Get, List email threads
+- **Webhook** — Create, List, Delete webhooks
 
 ### AgentMail Trigger (Events)
-- **Email Received**: Triggers when an inbox receives an email
-- **Email Sent**: Triggers when an email is sent
-- **Email Delivered**: Triggers when an email is delivered
-- **Email Bounced**: Triggers when an email bounces
+- **Email Received** — Triggers when an inbox gets an email
+- **Email Sent** — Triggers when an email is sent
+- **Email Delivered** — Triggers when delivery is confirmed
+- **Email Bounced** — Triggers when an email bounces
+
+### User-Friendly
+- **Inbox dropdown** — Pick inboxes from a list instead of typing IDs
+- **Simple forms** — Only essential fields are shown; advanced options are tucked away
+- **Return All** — Fetch all results with one toggle, or set a custom limit
+- **AI Agent compatible** — Use as a tool in n8n AI Agent workflows
 
 ![AgentMail Trigger Node](images/workflow-trigger.png)
 
@@ -40,24 +44,22 @@ This node provides two components:
 npm install n8n-nodes-agentmail
 ```
 
-## Credentials
+## Getting Started
 
-You need an AgentMail API key:
-1. Sign up at [agentmail.to](https://agentmail.to)
-2. Go to your dashboard
-3. Copy your API key
-4. In n8n, create new **AgentMail API** credentials
+1. **Get an API key** — Sign up at [agentmail.to](https://agentmail.to) and copy your key from the dashboard
+2. **Add credentials in n8n** — Go to Credentials > New > **AgentMail API** > paste your key > click Test
+3. **Create an inbox** — Add an AgentMail node > Inbox > Create > type a username > Execute
+4. **Send an email** — Add another AgentMail node > Message > Send > pick your inbox from the dropdown > fill in the recipient, subject, and message > Execute
+5. **Receive emails** — Add an AgentMail Trigger > pick an event > activate the workflow
 
 ## Example Workflows
-
-We provide detailed, ready-to-use workflow examples. Each includes step-by-step instructions, workflow JSON for easy import, and customization tips.
 
 | Example | Description | Integrations |
 |---------|-------------|--------------|
 | [Smart Inbox Filter](docs/examples/07-smart-inbox-filter.md) | AI-powered email triage with promo digests | OpenAI, Google Sheets |
 
 <details>
-<summary>More examples (archived)</summary>
+<summary>More examples</summary>
 
 | Example | Description | Integrations |
 |---------|-------------|--------------|
@@ -70,50 +72,7 @@ We provide detailed, ready-to-use workflow examples. Each includes step-by-step 
 
 </details>
 
-### Import Ready-to-Use Workflows
-
-Example workflows are available as importable JSON files in the [`examples/`](examples/) directory:
-
-```
-examples/
-└── smart-inbox-filter.json     # AI email triage with promo digests
-```
-
-Additional example workflows are available in `examples/archive/`.
-
-**To import a workflow:**
-1. Download the JSON file from the `examples/` folder
-2. In n8n, go to **Workflows → Import from File**
-3. Select the downloaded JSON file
-4. Configure your credentials (AgentMail, OpenAI, Slack, etc.)
-5. Update placeholder values (inbox IDs, channel names, etc.)
-
-### Quick Start: Smart Inbox Filter
-
-Use AgentMail as your primary inbox with AI-powered email triage:
-
-```
-PATH 1: Real-time Email Processing
-┌─────────────────┐    ┌─────────────┐    ┌─────────────┐
-│ AgentMail       │───▶│ OpenAI      │───▶│ Switch      │
-│ Trigger         │    │ (Classify)  │    │ (Route)     │
-└─────────────────┘    └─────────────┘    └──────┬──────┘
-                                              ┌──┴──┐
-                                              ▼     ▼
-                                         Forward  Store
-                                        Important  Promo
-
-PATH 2: Scheduled Digest (every 5 hours)
-┌─────────────────┐    ┌─────────────┐    ┌─────────────┐
-│ Schedule        │───▶│ Read Promos │───▶│ Summarize   │───▶ Send Digest
-│ Trigger         │    │ (Sheets)    │    │ (OpenAI)    │
-└─────────────────┘    └─────────────┘    └─────────────┘
-```
-
-1. Important emails → Forwarded immediately to your personal inbox
-2. Promotional emails → Stored and summarized every 5 hours
-
-See [full documentation](docs/examples/07-smart-inbox-filter.md) for complete setup instructions.
+Importable JSON files are in the [`examples/`](examples/) directory.
 
 ## Node Reference
 
@@ -122,7 +81,7 @@ See [full documentation](docs/examples/07-smart-inbox-filter.md) for complete se
 | Operation | Description |
 |-----------|-------------|
 | Create | Create a new inbox with a unique email address |
-| Get | Retrieve inbox details by ID |
+| Get | Retrieve inbox details |
 | List | List all inboxes in your account |
 | Delete | Delete an inbox permanently |
 
@@ -130,8 +89,8 @@ See [full documentation](docs/examples/07-smart-inbox-filter.md) for complete se
 
 | Operation | Description |
 |-----------|-------------|
-| Send | Send a new email from an inbox |
-| Reply | Reply to an existing message thread |
+| Send | Send an email from an inbox |
+| Reply | Reply to an existing message |
 | Get | Retrieve a specific message |
 | List | List messages in an inbox |
 
@@ -150,7 +109,7 @@ See [full documentation](docs/examples/07-smart-inbox-filter.md) for complete se
 | List | List all registered webhooks |
 | Delete | Remove a webhook |
 
-## Trigger Data
+## Trigger Output
 
 When the trigger fires, you receive:
 
@@ -172,13 +131,9 @@ When the trigger fires, you receive:
 }
 ```
 
-## Documentation
-
-- [Getting Started Guide](docs/getting-started.md) - Setup and configuration
-- [Example Workflows](docs/examples/) - Detailed workflow tutorials
-
 ## Resources
 
+- [Getting Started Guide](docs/getting-started.md)
 - [AgentMail Documentation](https://docs.agentmail.to)
 - [AgentMail API Reference](https://docs.agentmail.to/api-reference)
 - [n8n Community Forum](https://community.n8n.io)
@@ -190,7 +145,3 @@ When the trigger fires, you receive:
 ## Author
 
 Created by Joseph Maregn
-
----
-
-**Note**: This is a community node and is not officially supported by AgentMail or n8n.
