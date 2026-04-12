@@ -15,6 +15,7 @@ export class AgentMailTrigger implements INodeType {
 		displayName: 'AgentMail Trigger',
 		name: 'agentMailTrigger',
 		icon: 'file:agentmail.svg',
+		iconColor: 'black',
 		group: ['trigger'],
 		version: 1,
 		subtitle: '=Listens for {{$parameter["event"]}}',
@@ -39,6 +40,15 @@ export class AgentMailTrigger implements INodeType {
 				path: 'webhook',
 			},
 		],
+		triggerPanel: {
+			header: 'Listen for AgentMail Events',
+			executionsHelp: {
+				inactive: 'Activate the workflow to start listening for emails. AgentMail will send events to this node whenever an email is received, sent, delivered, or bounced.',
+				active: 'Your workflow is listening for emails. Send an email to one of your AgentMail inboxes to trigger it.',
+			},
+			activationHint: 'Activate the workflow to start receiving emails in real time.',
+		},
+		activationMessage: 'Your workflow is now listening for AgentMail email events.',
 		properties: [
 			{
 				displayName: 'Event',

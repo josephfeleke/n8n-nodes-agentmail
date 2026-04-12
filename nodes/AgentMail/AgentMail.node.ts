@@ -15,6 +15,7 @@ export class AgentMail implements INodeType {
 		displayName: 'AgentMail',
 		name: 'agentMail',
 		icon: 'file:agentmail.svg',
+		iconColor: 'black',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -32,6 +33,13 @@ export class AgentMail implements INodeType {
 			},
 		],
 		properties: [
+			{
+				displayName: 'To get started, create an API key at <a href="https://agentmail.to/dashboard" target="_blank">agentmail.to/dashboard</a>',
+				name: 'apiKeyNotice',
+				type: 'notice',
+				default: '',
+			},
+
 			// ----------------------------------
 			//         Resource Selection
 			// ----------------------------------
@@ -115,6 +123,7 @@ export class AgentMail implements INodeType {
 				default: '',
 				required: true,
 				placeholder: 'my-agent',
+				hint: 'This becomes the email address: username@agentmail.to',
 				description: 'Username for the inbox email address (e.g., my-agent@agentmail.to)',
 				displayOptions: {
 					show: {
