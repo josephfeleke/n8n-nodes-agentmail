@@ -8,6 +8,7 @@ import {
 export class AgentMailApi implements ICredentialType {
 	name = 'agentMailApi';
 	displayName = 'AgentMail API';
+	icon = 'file:../nodes/AgentMail/agentmail.svg' as const;
 	documentationUrl = 'https://docs.agentmail.to';
 	
 	properties: INodeProperties[] = [

@@ -81,14 +81,14 @@ export class AgentMailTrigger implements INodeType {
 				description: 'The event to listen for',
 			},
 			{
-				displayName: 'Inbox Filter',
+				displayName: 'Inbox Filter Name or ID',
 				name: 'inboxFilter',
 				type: 'options',
 				typeOptions: {
 					loadOptionsMethod: 'getInboxes',
 				},
 				default: '',
-				description: 'Only trigger for this specific inbox (leave empty for all inboxes)',
+				description: 'Only trigger for this specific inbox (leave empty for all inboxes). Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 			},
 		],
 	};
@@ -143,7 +143,7 @@ export class AgentMailTrigger implements INodeType {
 							},
 						);
 						return true;
-					} catch (error) {
+					} catch {
 						// Webhook no longer exists
 						delete webhookData.webhookId;
 						return false;
@@ -169,7 +169,7 @@ export class AgentMailTrigger implements INodeType {
 							return true;
 						}
 					}
-				} catch (error) {
+				} catch {
 					// Ignore errors
 				}
 
@@ -199,7 +199,7 @@ export class AgentMailTrigger implements INodeType {
 
 					webhookData.webhookId = response.webhook_id || response.id || (response.webhook as IDataObject)?.id;
 					return true;
-				} catch (error) {
+				} catch {
 					return false;
 				}
 			},
@@ -222,7 +222,7 @@ export class AgentMailTrigger implements INodeType {
 							json: true,
 						},
 					);
-				} catch (error) {
+				} catch {
 					// Ignore errors on delete
 				}
 

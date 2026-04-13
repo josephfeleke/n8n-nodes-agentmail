@@ -166,7 +166,7 @@ export class AgentMail implements INodeType {
 
 			// Inbox: Get/Delete
 			{
-				displayName: 'Inbox',
+				displayName: 'Inbox Name or ID',
 				name: 'inboxId',
 				type: 'options',
 				typeOptions: {
@@ -174,7 +174,7 @@ export class AgentMail implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'The inbox to use',
+				description: 'The inbox to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				displayOptions: {
 					show: {
 						resource: ['inbox'],
@@ -227,7 +227,7 @@ export class AgentMail implements INodeType {
 
 			// Message: Send/List
 			{
-				displayName: 'Inbox',
+				displayName: 'Inbox Name or ID',
 				name: 'inboxId',
 				type: 'options',
 				typeOptions: {
@@ -235,7 +235,7 @@ export class AgentMail implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'The inbox to use',
+				description: 'The inbox to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				displayOptions: {
 					show: {
 						resource: ['message'],
@@ -392,7 +392,7 @@ export class AgentMail implements INodeType {
 				default: 'list',
 			},
 			{
-				displayName: 'Inbox',
+				displayName: 'Inbox Name or ID',
 				name: 'inboxId',
 				type: 'options',
 				typeOptions: {
@@ -400,7 +400,7 @@ export class AgentMail implements INodeType {
 				},
 				default: '',
 				required: true,
-				description: 'The inbox to use',
+				description: 'The inbox to use. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 				displayOptions: {
 					show: {
 						resource: ['thread'],
@@ -414,7 +414,6 @@ export class AgentMail implements INodeType {
 				type: 'string',
 				default: '',
 				required: true,
-				description: 'The thread ID',
 				displayOptions: {
 					show: {
 						resource: ['thread'],
