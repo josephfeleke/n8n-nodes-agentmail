@@ -225,7 +225,7 @@ export class AgentMail implements INodeType {
 				default: 'get',
 			},
 
-			// Message: Send/List
+			// Message: All operations need inbox
 			{
 				displayName: 'Inbox Name or ID',
 				name: 'inboxId',
@@ -239,7 +239,7 @@ export class AgentMail implements INodeType {
 				displayOptions: {
 					show: {
 						resource: ['message'],
-						operation: ['send', 'list'],
+						operation: ['send', 'list', 'reply', 'get'],
 					},
 				},
 			},
@@ -665,12 +665,13 @@ export class AgentMail implements INodeType {
 							'agentMailApi',
 							{
 								method: 'POST' as IHttpRequestMethods,
-								url: `${baseUrl}/inboxes/${inboxId}/messages`,
+								url: `${baseUrl}/inboxes/${inboxId}/messages/send`,
 								body,
 								json: true,
 							},
 						);
 					} else if (operation === 'reply') {
+						const inboxId = this.getNodeParameter('inboxId', i) as string;
 						const messageId = this.getNodeParameter('messageId', i) as string;
 						const textBody = this.getNodeParameter('textBody', i) as string;
 						const messageOptions = this.getNodeParameter('messageOptions', i) as IDataObject;
@@ -687,19 +688,20 @@ export class AgentMail implements INodeType {
 							'agentMailApi',
 							{
 								method: 'POST' as IHttpRequestMethods,
-								url: `${baseUrl}/messages/${messageId}/reply`,
+								url: `${baseUrl}/inboxes/${inboxId}/messages/${messageId}/reply`,
 								body,
 								json: true,
 							},
 						);
 					} else if (operation === 'get') {
+						const inboxId = this.getNodeParameter('inboxId', i) as string;
 						const messageId = this.getNodeParameter('messageId', i) as string;
 						responseData = await this.helpers.httpRequestWithAuthentication.call(
 							this,
 							'agentMailApi',
 							{
 								method: 'GET' as IHttpRequestMethods,
-								url: `${baseUrl}/messages/${messageId}`,
+								url: `${baseUrl}/inboxes/${inboxId}/messages/${messageId}`,
 								json: true,
 							},
 						);
@@ -820,7 +822,7 @@ export class AgentMail implements INodeType {
 								url: `${baseUrl}/webhooks`,
 								body: {
 									url: webhookUrl,
-									events,
+									event_types: events,
 								},
 								json: true,
 							},

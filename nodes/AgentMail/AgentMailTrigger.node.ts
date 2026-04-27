@@ -4,11 +4,12 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	IWebhookResponseData,
+	NodeApiError,
 	NodeConnectionTypes,
 	IDataObject,
 	IHttpRequestMethods,
 } from 'n8n-workflow';
-import type { ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
+import type { ILoadOptionsFunctions, INodePropertyOptions, JsonObject } from 'n8n-workflow';
 
 export class AgentMailTrigger implements INodeType {
 	description: INodeTypeDescription = {
@@ -150,27 +151,25 @@ export class AgentMailTrigger implements INodeType {
 					}
 				}
 
-				// Check if any webhook matches our URL
-				try {
-					const response = await this.helpers.httpRequestWithAuthentication.call(
-						this,
-						'agentMailApi',
-						{
-							method: 'GET' as IHttpRequestMethods,
-							url: `${baseUrl}/webhooks`,
-							json: true,
-						},
-					) as IDataObject;
+				// Check if any webhook matches our URL.
+				// If listing fails (auth error, transient API issue), surface it instead of silently
+				// returning false — that would cause n8n to call create() and register a duplicate.
+				const response = await this.helpers.httpRequestWithAuthentication.call(
+					this,
+					'agentMailApi',
+					{
+						method: 'GET' as IHttpRequestMethods,
+						url: `${baseUrl}/webhooks`,
+						json: true,
+					},
+				) as IDataObject;
 
-					const webhooks = (response.webhooks || response.data || []) as IDataObject[];
-					for (const webhook of webhooks) {
-						if (webhook.url === webhookUrl) {
-							webhookData.webhookId = webhook.webhook_id || webhook.id;
-							return true;
-						}
+				const webhooks = (response.webhooks || response.data || []) as IDataObject[];
+				for (const webhook of webhooks) {
+					if (webhook.url === webhookUrl) {
+						webhookData.webhookId = webhook.webhook_id || webhook.id;
+						return true;
 					}
-				} catch {
-					// Ignore errors
 				}
 
 				return false;
@@ -182,8 +181,9 @@ export class AgentMailTrigger implements INodeType {
 				const webhookData = this.getWorkflowStaticData('node');
 				const baseUrl = 'https://api.agentmail.to/v0';
 
+				let response: IDataObject;
 				try {
-					const response = await this.helpers.httpRequestWithAuthentication.call(
+					response = await this.helpers.httpRequestWithAuthentication.call(
 						this,
 						'agentMailApi',
 						{
@@ -196,12 +196,15 @@ export class AgentMailTrigger implements INodeType {
 							json: true,
 						},
 					) as IDataObject;
-
-					webhookData.webhookId = response.webhook_id || response.id || (response.webhook as IDataObject)?.id;
-					return true;
-				} catch {
-					return false;
+				} catch (error) {
+					throw new NodeApiError(this.getNode(), error as JsonObject, {
+						message: 'Failed to register AgentMail webhook',
+						description: 'Check that your API key is valid and your AgentMail plan allows webhooks.',
+					});
 				}
+
+				webhookData.webhookId = response.webhook_id || response.id || (response.webhook as IDataObject)?.id;
+				return true;
 			},
 
 			async delete(this: IHookFunctions): Promise<boolean> {
