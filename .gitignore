@@ -18,3 +18,8 @@ dist/
 # Build cache
 .eslintcache
 tsconfig.tsbuildinfo
+
+# Test coverage
+coverage/
+!.prettierrc.js
+!jest.config.js
